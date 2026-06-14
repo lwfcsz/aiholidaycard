@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI节日贺卡生成器</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+    }
+    .card-preview { box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102,126,234,0.4);
+    }
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="app" class="min-h-screen py-8 px-4">
+    <div class="max-w-5xl mx-auto">
+      <header class="text-center mb-10">
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-3">🎊 AI节日贺卡生成器</h1>
+        <p class="text-gray-300 text-lg">选择节日场景，AI为你生成专属祝福语</p>
+      </header>
+
+      <div class="grid md:grid-cols-2 gap-8">
+        <div class="space-y-6">
+          <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">📌 选择节日场景</h2>
+            <div class="grid grid-cols-2 gap-3">
+              <button v-for="(occ, key) in occasions" :key="key"
+                @click="selectedOccasion = key"
+                :class="['p-4 rounded-xl transition-all text-left', selectedOccasion === key ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/30']">
+                <div class="text-2xl mb-1">{{ occ.emoji }}</div>
+                <div class="font-semibold">{{ occ.name }}</div>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">✨ 选择祝福风格</h2>
+            <div class="space-y-3">
+              <label v-for="(style, key) in styles" :key="key"
+                :class="['flex items-center p-4 rounded-xl cursor-pointer transition-all', selectedStyle === key ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' : 'bg-white/20 text-white hover:bg-white/30']">
+                <input type="radio" v-model="selectedStyle" :value="key" class="hidden" />
+                <span class="text-2xl mr-3">{{ style.emoji }}</span>
+                <div>
+                  <div class="font-semibold">{{ style.name }}</div>
+                  <div class="text-sm opacity-80">{{ style.desc }}</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">💬 自定义祝福（可选）</h2>
+            <input v-model="recipient" type="text" placeholder="致：亲爱的..."
+              class="w-full p-3 rounded-xl bg-white/20 text-white placeholder-gray-300 border border-white/30 focus:outline-none focus:border-white mb-3" />
+            <textarea v-model="customWords" rows="3" placeholder="想说点什么..."
+              class="w-full p-3 rounded-xl bg-white/20 text-white placeholder-gray-300 border border-white/30 focus:outline-none focus:border-white"></textarea>
+          </div>
+
+          <button @click="generateCard" :disabled="isGenerating"
+            class="w-full py-4 rounded-xl font-bold text-xl text-white btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+            <span v-if="isGenerating" class="flex items-center justify-center">
+              <svg class="animate-spin -ml-1 mr-3 h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              AI生成中...
+            </span>
+            <span v-else>🚀 一键生成贺卡</span>
+          </button>
+        </div>
+
+        <div class="space-y-6">
+          <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">📬 贺卡预览</h2>
+            <div v-if="currentCard" class="card-preview rounded-2xl p-8 min-h-[400px] flex flex-col justify-center items-center text-center"
+              :style="{ background: currentCard.template.background }">
+              <div class="text-6xl mb-4">{{ getOccasionEmoji(currentCard.occasion) }}</div>
+              <p class="text-xl font-bold text-white mb-2">{{ getOccasionName(currentCard.occasion) }}</p>
+              <p class="text-white/90 whitespace-pre-line leading-relaxed">{{ currentCard.blessing }}</p>
+              <p class="text-white/60 text-sm mt-4">{{ formatDate(currentCard.created_at) }}</p>
+            </div>
+            <div v-else class="card-preview rounded-2xl p-8 min-h-[400px] flex flex-col justify-center items-center text-center bg-white/20">
+              <div class="text-6xl mb-4 opacity-50">📭</div>
+              <p class="text-white/70 text-lg">点击上方按钮生成贺卡</p>
+            </div>
+          </div>
+
+          <div v-if="currentCard" class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">🔗 分享贺卡</h2>
+            <div class="space-y-3">
+              <button @click="copyLink" class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all">
+                📋 复制分享链接
+              </button>
+            </div>
+            <div class="mt-4 p-3 bg-white/20 rounded-xl">
+              <p class="text-white/80 text-sm mb-2">分享链接：</p>
+              <p class="text-white text-sm break-all">{{ shareLink }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="text-center mt-12 text-gray-400">
+        <p>Made with ❤️ by AI Greeting Card Generator</p>
+      </footer>
+    </div>
+
+    <div v-if="toast.show" class="fixed bottom-4 right-4 px-6 py-3 rounded-xl text-white shadow-lg" :class="toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'">
+      {{ toast.message }}
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref } = Vue
+    createApp({
+      setup() {
+        const occasions = {
+          birthday: { name: '生日', emoji: '🎂' },
+          festival: { name: '节日', emoji: '🏮' },
+          graduation: { name: '毕业', emoji: '🎓' },
+          blessing: { name: '祝福', emoji: '🌸' }
+        }
+        const styles = {
+          warm: { name: '温馨风格', emoji: '💕', desc: '温暖感人' },
+          humorous: { name: '幽默风格', emoji: '😄', desc: '轻松搞笑' },
+          elegant: { name: '优雅风格', emoji: '🎩', desc: '文雅得体' }
+        }
+        const BLESSING_TEMPLATES = {
+          birthday: {
+            warm: ['🎂 生日快乐！愿你的每一天都像生日蛋糕一样甜蜜！', '🎉 在这特别的日子里，祝你生日快乐！愿你永远保持童心！', '🎈 生辰吉乐，福寿安康。愿新的一岁，所有美好如期而至！', '🎂 愿你每一岁都奔走在自己的热爱里！生日快乐！', '🎉 生日快乐！愿美好和幸福永远围绕着你！'],
+            humorous: ['🎂 又老了一岁！不过没关系，颜值还是在线的！生日快乐！', '🎉 恭喜解锁新的一岁！愿你的发际线稳如泰山！', '🎈 生日年年有，今年特别牛！生日快乐！', '🎂 祝我认识的最可爱的人生日快乐！', '🎉 生日快乐！愿你钱包满满，烦恼空空！'],
+            elegant: ['🎂 良辰吉日，福寿安康。愿君岁岁常欢愉，年年皆胜意。', '🎉 华诞欣逢盛世开，好风佳月尽袭来。祝君生日快乐！', '🎈 生如夏花之绚烂，岁月静好。愿你所愿皆可得！', '🎂 愿你一生被爱，勇敢自由。生日快乐！', '🎉 岁岁年年，万喜万般宜。生日快乐！']
+          },
+          festival: {
+            warm: ['🏮 新春快乐！愿新的一年，平安喜乐，万事胜意！', '🎄 圣诞快乐！愿这个冬天，有人问你粥可温！', '🎃 万圣节快乐！愿你的人生充满惊喜和欢乐！', '🌙 中秋快乐！月圆人圆事事圆！', '🎆 新年快乐！愿新的一年心想事成！'],
+            humorous: ['🏮 过年啦！恭喜发财，红包拿来！', '🎄 圣诞节到啦！希望你的袜子装满礼物！', '🎃 万圣节不给糖就捣蛋！', '🏮 春节快乐！吃好喝好，不长胖！', '🎆 新年快乐！愿你的年终奖比去年多！'],
+            elegant: ['🏮 春回大地，万物复苏。恭贺新禧，福满人间。', '🎄 银装素裹，圣诞祥和。愿你心有所属，岁岁平安。', '🏮 爆竹声中一岁除，春风送暖入屠苏！', '🌙 但愿人长久，千里共婵娟。中秋快乐！', '🎆 一元复始，万象更新。新年快乐！']
+          },
+          graduation: {
+            warm: ['🎓 毕业快乐！愿你前程似锦，归来仍是少年！', '🎓 恭喜毕业！这是终点，也是起点！', '🎓 毕业不是结束，而是新旅程的开始！', '🎓 愿你乘风破浪，前程万里！', '🎓 毕业快乐！愿你拥有无限可能！'],
+            humorous: ['🎓 终于毕业了！再也不用担心挂科了！', '🎓 恭喜解锁"社会大学"入学资格！', '🎓 毕业啦！再也不用听室友打呼噜了！', '🎓 恭喜脱离苦海，进入更大的苦海！', '🎓 毕业快乐！愿你的工资比发际线高！'],
+            elegant: ['🎓 鹏程万里，前途似海。愿你以梦为马，不负韶华。', '🎓 天高任鸟飞，海阔凭鱼跃。愿此去繁花似锦！', '🎓 长风破浪会有时，直挂云帆济沧海！', '🎓 愿你走出半生，归来仍是少年！', '🎓 前程似锦，未来可期！']
+          },
+          blessing: {
+            warm: ['🌸 愿你被世界温柔以待，愿你所遇皆美好。', '🌸 祝你开心每一天，幸福永相伴！', '🌸 愿你的生活如诗如画，每一天都充满阳光！', '🌸 愿你眼里有光，心中有爱！', '🌸 祝你一切顺利，万事如意！'],
+            humorous: ['🌸 祝你钱包鼓鼓，身体棒棒，吃嘛嘛香！', '🌸 愿你睡觉睡到自然醒，数钱数到手抽筋！', '🌸 祝你心想事成，万事如意！', '🌸 愿你头发浓密，脱发远离！', '🌸 祝你天天开心，笑口常开！'],
+            elegant: ['🌸 静水流深，沧笙踏歌。愿你岁月无恙，一切安好。', '🌸 时光清浅，岁月嫣然。愿你所见皆温柔！', '🌸 愿你三冬暖，愿你春不寒！', '🌸 愿你历尽千帆，归来仍是少年！', '🌸 愿你平安喜乐，得偿所愿！']
+          }
+        }
+        const CARD_TEMPLATES = {
+          warm: { background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+          humorous: { background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+          elegant: { background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }
+        }
+
+        const selectedOccasion = ref('birthday')
+        const selectedStyle = ref('warm')
+        const recipient = ref('')
+        const customWords = ref('')
+        const isGenerating = ref(false)
+        const currentCard = ref(null)
+        const shareLink = ref('')
+        const toast = ref({ show: false, message: '', type: 'success' })
+
+        const showToast = (msg, type = 'success') => {
+          toast.value = { show: true, message: msg, type }
+          setTimeout(() => { toast.value.show = false }, 3000)
+        }
+
+        const getOccasionEmoji = (occ) => occasions[occ]?.emoji || '🎊'
+        const getOccasionName = (occ) => occasions[occ]?.name || '贺卡'
+
+        const formatDate = (dateStr) => {
+          const date = new Date(dateStr)
+          return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+        }
+
+        const generateCard = () => {
+          isGenerating.value = true
+          
+          setTimeout(() => {
+            const templates = BLESSING_TEMPLATES[selectedOccasion.value]?.[selectedStyle.value] || []
+            const blessing = templates[Math.floor(Math.random() * templates.length)] || '祝你节日快乐！'
+            let finalBlessing = blessing
+            if (customWords.value) finalBlessing = `${blessing}\n\n💬 ${customWords.value}`
+            if (recipient.value) finalBlessing = `致 ${recipient.value}：\n\n${finalBlessing}`
+            
+            const cardId = Math.random().toString(36).substring(2, 10)
+            currentCard.value = {
+              card_id: cardId,
+              occasion: selectedOccasion.value,
+              style: selectedStyle.value,
+              blessing: finalBlessing,
+              created_at: new Date().toISOString(),
+              template: CARD_TEMPLATES[selectedStyle.value] || CARD_TEMPLATES.warm
+            }
+            shareLink.value = `${window.location.origin}/?card=${cardId}`
+            showToast('贺卡生成成功！')
+            isGenerating.value = false
+          }, 1000)
+        }
+
+        const copyLink = () => {
+          navigator.clipboard.writeText(shareLink.value)
+          showToast('链接已复制！')
+        }
+
+        return {
+          occasions, styles, selectedOccasion, selectedStyle, recipient, customWords,
+          isGenerating, currentCard, shareLink, toast,
+          getOccasionEmoji, getOccasionName, formatDate, generateCard, copyLink
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>
