@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 项目特定
+backend/__pycache__/
+*.log
+.DS_Store
+
+# 临时文件
+*.tmp
+*.bak
+*.cache
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# Node (如果有)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 压缩包
+*.zip
+*.rar
+*.tar
