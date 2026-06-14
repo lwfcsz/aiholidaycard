@@ -195,57 +195,6 @@
           return new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
         }
 
-        // Base64 编码解码（URL安全版本）
-        const encodeBase64 = (str) => {
-          try {
-            return btoa(unescape(encodeURIComponent(str)))
-              .replace(/\+/g, '-')
-              .replace(/\//g, '_')
-              .replace(/=/g, '')
-          } catch (e) {
-            return btoa(str)
-              .replace(/\+/g, '-')
-              .replace(/\//g, '_')
-              .replace(/=/g, '')
-          }
-        }
-
-        const decodeBase64 = (str) => {
-          str = str.replace(/-/g, '+').replace(/_/g, '/')
-          const padding = 4 - (str.length % 4)
-          if (padding !== 4) str += '='.repeat(padding)
-          try {
-            return decodeURIComponent(escape(atob(str)))
-          } catch (e) {
-            return atob(str)
-          }
-        }
-
-        // 从URL参数解析贺卡信息
-        const parseUrlParams = () => {
-          const params = new URLSearchParams(window.location.search)
-          const cardData = params.get('c')
-          if (cardData) {
-            try {
-              const decoded = JSON.parse(decodeBase64(cardData))
-              viewCard.value = {
-                ...decoded,
-                date: formatDate()
-              }
-              isViewMode.value = true
-            } catch (e) {
-              console.error('解析贺卡数据失败:', e)
-              isViewMode.value = false
-            }
-          }
-        }
-
-        // 返回主页
-        const goHome = () => {
-          window.location.href = `${window.location.origin}/aiholidaycard`
-        }
-
-        // 生成贺卡
         const generateCard = () => {
           isGenerating.value = true
           
@@ -267,15 +216,14 @@
               date: formatDate()
             }
             
-            // 生成简短的分享链接（使用Base64编码）
-            const cardData = JSON.stringify({
+            const cardData = {
               emoji: occ.emoji,
               title: occ.title,
               blessing: finalBlessing,
               background: styleInfo.bg
-            })
-            const encoded = encodeBase64(cardData)
-            shareLink.value = `${window.location.origin}/aiholidaycard?c=${encoded}`
+            }
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cardData))))
+            shareLink.value = `https://lwfcsz.github.io/aiholidaycard?card=${encodeURIComponent(encoded)}`
             
             showToast('贺卡生成成功！')
             isGenerating.value = false
@@ -287,8 +235,26 @@
           showToast('链接已复制！')
         }
 
+        const goHome = () => {
+          window.location.href = 'https://lwfcsz.github.io/aiholidaycard'
+        }
+
         onMounted(() => {
-          parseUrlParams()
+          const params = new URLSearchParams(window.location.search)
+          const cardParam = params.get('card')
+          if (cardParam) {
+            try {
+              const decoded = JSON.parse(decodeURIComponent(escape(atob(cardParam))))
+              viewCard.value = {
+                ...decoded,
+                date: formatDate()
+              }
+              isViewMode.value = true
+            } catch (e) {
+              console.error('解析贺卡数据失败:', e)
+              isViewMode.value = false
+            }
+          }
         })
 
         return {
