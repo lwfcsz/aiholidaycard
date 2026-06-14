@@ -25,10 +25,10 @@
 </head>
 <body>
   <div id="app" class="min-h-screen py-8 px-4">
-    <!-- 贺卡展示页面（当有URL参数时） -->
+    <!-- 贺卡展示页面 -->
     <div v-if="isViewMode" class="flex justify-center items-center min-h-screen">
       <div class="card-preview rounded-2xl p-8 max-w-lg w-full text-center"
-        :style="{ background: viewCard.template.background }">
+        :style="{ background: viewCard.background }">
         <div class="text-6xl mb-4">{{ viewCard.emoji }}</div>
         <h1 class="text-2xl font-bold text-white mb-4">{{ viewCard.title }}</h1>
         <p class="text-white/90 text-lg whitespace-pre-line leading-relaxed">{{ viewCard.blessing }}</p>
@@ -100,7 +100,7 @@
           <div class="bg-white/10 backdrop-blur-md rounded-2xl p-6">
             <h2 class="text-xl font-bold text-white mb-4">📬 贺卡预览</h2>
             <div v-if="currentCard" class="card-preview rounded-2xl p-8 min-h-[400px] flex flex-col justify-center items-center text-center"
-              :style="{ background: currentCard.template.background }">
+              :style="{ background: currentCard.background }">
               <div class="text-6xl mb-4">{{ currentCard.emoji }}</div>
               <p class="text-xl font-bold text-white mb-2">{{ currentCard.title }}</p>
               <p class="text-white/90 whitespace-pre-line leading-relaxed">{{ currentCard.blessing }}</p>
@@ -148,9 +148,9 @@
           blessing: { name: '祝福', emoji: '🌸', title: '祝福' }
         }
         const styles = {
-          warm: { name: '温馨风格', emoji: '💕', desc: '温暖感人' },
-          humorous: { name: '幽默风格', emoji: '😄', desc: '轻松搞笑' },
-          elegant: { name: '优雅风格', emoji: '🎩', desc: '文雅得体' }
+          warm: { name: '温馨风格', emoji: '💕', desc: '温暖感人', bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
+          humorous: { name: '幽默风格', emoji: '😄', desc: '轻松搞笑', bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
+          elegant: { name: '优雅风格', emoji: '🎩', desc: '文雅得体', bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }
         }
         const BLESSING_TEMPLATES = {
           birthday: {
@@ -174,11 +174,6 @@
             elegant: ['🌸 静水流深，沧笙踏歌。愿你岁月无恙，一切安好。', '🌸 时光清浅，岁月嫣然。愿你所见皆温柔！', '🌸 愿你三冬暖，愿你春不寒！']
           }
         }
-        const CARD_TEMPLATES = {
-          warm: { background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' },
-          humorous: { background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' },
-          elegant: { background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }
-        }
 
         const selectedOccasion = ref('birthday')
         const selectedStyle = ref('warm')
@@ -200,13 +195,30 @@
           return new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
         }
 
+        // Base64 编码解码
+        const encodeBase64 = (str) => {
+          try {
+            return btoa(unescape(encodeURIComponent(str)))
+          } catch (e) {
+            return btoa(str)
+          }
+        }
+
+        const decodeBase64 = (str) => {
+          try {
+            return decodeURIComponent(escape(atob(str)))
+          } catch (e) {
+            return atob(str)
+          }
+        }
+
         // 从URL参数解析贺卡信息
         const parseUrlParams = () => {
           const params = new URLSearchParams(window.location.search)
-          const cardData = params.get('data')
+          const cardData = params.get('c')
           if (cardData) {
             try {
-              const decoded = JSON.parse(decodeURIComponent(cardData))
+              const decoded = JSON.parse(decodeBase64(cardData))
               viewCard.value = {
                 ...decoded,
                 date: formatDate()
@@ -214,6 +226,7 @@
               isViewMode.value = true
             } catch (e) {
               console.error('解析贺卡数据失败:', e)
+              isViewMode.value = false
             }
           }
         }
@@ -235,23 +248,25 @@
             if (recipient.value) finalBlessing = `致 ${recipient.value}：\n\n${finalBlessing}`
             
             const occ = occasions[selectedOccasion.value]
-            const cardData = {
-              occasion: selectedOccasion.value,
-              style: selectedStyle.value,
+            const styleInfo = styles[selectedStyle.value]
+            
+            currentCard.value = {
               emoji: occ.emoji,
               title: occ.title,
               blessing: finalBlessing,
-              template: CARD_TEMPLATES[selectedStyle.value] || CARD_TEMPLATES.warm
-            }
-            
-            currentCard.value = {
-              ...cardData,
+              background: styleInfo.bg,
               date: formatDate()
             }
             
-            // 生成包含完整贺卡信息的分享链接
-            const encodedData = encodeURIComponent(JSON.stringify(cardData))
-            shareLink.value = `${window.location.origin}${window.location.pathname}?data=${encodedData}`
+            // 生成简短的分享链接（使用Base64编码）
+            const cardData = JSON.stringify({
+              emoji: occ.emoji,
+              title: occ.title,
+              blessing: finalBlessing,
+              background: styleInfo.bg
+            })
+            const encoded = encodeBase64(cardData)
+            shareLink.value = `${window.location.origin}${window.location.pathname}?c=${encoded}`
             
             showToast('贺卡生成成功！')
             isGenerating.value = false
