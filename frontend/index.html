@@ -233,7 +233,7 @@
 
         // 返回主页
         const goHome = () => {
-          window.location.href = window.location.origin + window.location.pathname
+          window.location.href = `${window.location.origin}/aiholidaycard`
         }
 
         // 生成贺卡
@@ -266,7 +266,7 @@
               background: styleInfo.bg
             })
             const encoded = encodeBase64(cardData)
-            shareLink.value = `${window.location.origin}${window.location.pathname}?c=${encoded}`
+            shareLink.value = `${window.location.origin}/aiholidaycard?c=${encoded}`
             
             showToast('贺卡生成成功！')
             isGenerating.value = false
